@@ -20,6 +20,13 @@ public class AsyncTransactionalAction extends Action<AsyncTransactional>
     {
         return AsyncJPA.withTransactionAsync(configuration.value(),
                                              configuration.readOnly(),
-                                             () -> delegate.call(ctx));
+                                             new F.Function0<F.Promise<Result>>()
+                                             {
+                                                 @Override
+                                                 public F.Promise<Result> apply() throws Throwable
+                                                 {
+                                                     return delegate.call(ctx);
+                                                 }
+                                             });
     }
 }
