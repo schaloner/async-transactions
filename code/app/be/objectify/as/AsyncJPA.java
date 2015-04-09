@@ -1,11 +1,7 @@
 package be.objectify.as;
 
-import play.Application;
-import play.Play;
 import play.db.jpa.JPA;
-import play.db.jpa.JPAPlugin;
 import play.libs.F;
-import play.mvc.Http;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
@@ -18,67 +14,28 @@ import javax.persistence.EntityTransaction;
  */
 public class AsyncJPA
 {
-    // Only used when there's no HTTP context
-    static ThreadLocal<EntityManager> currentEntityManager = new ThreadLocal<>();
-
     /**
      * Get the EntityManager for specified persistence unit for this thread.
      */
-    public static EntityManager em(String key) {
-        Application app = Play.application();
-        if(app == null) {
-            throw new RuntimeException("No application running");
-        }
-
-        JPAPlugin jpaPlugin = app.plugin(JPAPlugin.class);
-        if(jpaPlugin == null) {
-            throw new RuntimeException("No JPA EntityManagerFactory configured for name [" + key + "]");
-        }
-
-        EntityManager em = jpaPlugin.em(key);
-        if(em == null) {
-            throw new RuntimeException("No JPA EntityManagerFactory configured for name [" + key + "]");
-        }
-
-        return em;
+    public static EntityManager em(String key)
+    {
+        return JPA.em(key);
     }
 
     /**
      * Get the default EntityManager for this thread.
      */
-    public static EntityManager em() {
-        Http.Context context = Http.Context.current.get();
-        if (context != null) {
-            EntityManager em = (EntityManager) context.args.get("currentEntityManager");
-            if (em == null) {
-                throw new RuntimeException("No EntityManager bound to this thread. Try to annotate your action method with @be.objectify.deadbolt.jpa.actions.AsyncTransactional");
-            }
-            return em;
-        }
-        // Not a web request
-        EntityManager em = currentEntityManager.get();
-        if (em == null) {
-            throw new RuntimeException("No EntityManager bound to this thread. Try wrapping this call in JPA.withTransaction, or ensure that the HTTP context is setup on this thread.");
-        }
-        return em;
+    public static EntityManager em()
+    {
+        return JPA.em();
     }
 
     /**
      * Bind an EntityManager to the current thread.
      */
-    public static void bindForCurrentThread(final EntityManager em) {
-        Http.Context context = Http.Context.current.get();
-        if (context != null) {
-            if (em == null) {
-                context.args.remove("currentEntityManager");
-            } else {
-                context.args.put("currentEntityManager",
-                                 em);
-            }
-        } else {
-            JPA.bindForCurrentThread(em);
-            currentEntityManager.set(em);
-        }
+    public static void bindForCurrentThread(final EntityManager em)
+    {
+        JPA.bindForCurrentThread(em);
     }
 
     /**
@@ -86,8 +43,9 @@ public class AsyncJPA
      *
      * @param block Block of code to execute.
      */
-    public static <T> F.Promise<T> withTransactionAsync(final play.libs.F.Function0<F.Promise<T>> block) throws Throwable {
-        return withTransactionAsync("default",
+    public static <T> F.Promise<T> withTransactionAsync(final play.libs.F.Function0<F.Promise<T>> block) throws Throwable
+    {
+        return AsyncJPA.withTransactionAsync("default",
                                     false,
                                     block);
     }
@@ -101,14 +59,17 @@ public class AsyncJPA
      */
     public static <T> F.Promise<T> withTransactionAsync(final String name,
                                                         final boolean readOnly,
-                                                        final play.libs.F.Function0<F.Promise<T>> block) throws Throwable {
+                                                        final play.libs.F.Function0<F.Promise<T>> block) throws Throwable
+    {
         EntityManager em = null;
         EntityTransaction tx = null;
-        try {
+        try
+        {
             em = AsyncJPA.em(name);
             AsyncJPA.bindForCurrentThread(em);
 
-            if (!readOnly) {
+            if (!readOnly)
+            {
                 tx = em.getTransaction();
                 tx.begin();
             }
@@ -118,13 +79,19 @@ public class AsyncJPA
             final EntityManager fem = em;
             final EntityTransaction ftx = tx;
 
-            F.Promise<T> committedResult = result.map(new F.Function<T, T>() {
+            F.Promise<T> committedResult = result.map(new F.Function<T, T>()
+            {
                 @Override
-                public T apply(T t) throws Throwable {
-                    if (ftx != null) {
-                        if (ftx.getRollbackOnly()) {
+                public T apply(T t) throws Throwable
+                {
+                    if (ftx != null)
+                    {
+                        if (ftx.getRollbackOnly())
+                        {
                             ftx.rollback();
-                        } else {
+                        }
+                        else
+                        {
                             ftx.commit();
                         }
                     }
@@ -132,25 +99,33 @@ public class AsyncJPA
                 }
             });
 
-            committedResult.onFailure(new F.Callback<Throwable>() {
+            committedResult.onFailure(new F.Callback<Throwable>()
+            {
                 @Override
-                public void invoke(Throwable t) {
-                    if (ftx != null) {
-                        try {
-                            if (ftx.isActive()) {
+                public void invoke(Throwable t)
+                {
+                    if (ftx != null)
+                    {
+                        try
+                        {
+                            if (ftx.isActive())
+                            {
                                 ftx.rollback();
                             }
                         }
-                        catch (Throwable e) {
+                        catch (Throwable e)
+                        {
                         }
                     }
                     fem.close();
                     AsyncJPA.bindForCurrentThread(null);
                 }
             });
-            committedResult.onRedeem(new F.Callback<T>() {
+            committedResult.onRedeem(new F.Callback<T>()
+            {
                 @Override
-                public void invoke(T t) {
+                public void invoke(T t)
+                {
                     fem.close();
                     AsyncJPA.bindForCurrentThread(null);
                 }
@@ -158,15 +133,20 @@ public class AsyncJPA
 
             return committedResult;
         }
-        catch (Throwable t) {
-            if (tx != null) {
-                try {
+        catch (Throwable t)
+        {
+            if (tx != null)
+            {
+                try
+                {
                     tx.rollback();
                 }
-                catch (Throwable e) {
+                catch (Throwable e)
+                {
                 }
             }
-            if (em != null) {
+            if (em != null)
+            {
                 em.close();
                 AsyncJPA.bindForCurrentThread(null);
             }
