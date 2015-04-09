@@ -2,13 +2,16 @@ Async transactions
 ==================
 
 There is a [well-known issue](https://github.com/playframework/playframework/pull/2042) with Play's JPA support when
-using promises.  This library provides a way of ensuring entity managers are still available where needed.
+using promises.  This library provides a way of ensuring entity managers are still available where needed.  It can be
+seen as an extension to javaJpa, as that dependency must also be installed and configured as usual.
 
 Installation
 ------------
 Add the following to your build.sbt file:
 
     "be.objectify" %% "async-transactions" % "1.0-SNAPSHOT" 
+
+You will also need to hava javaJpa declared as a dependency.
 
 Usage
 -----
