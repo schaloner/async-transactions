@@ -11,6 +11,10 @@ Add the following to your build.sbt file:
 
     "be.objectify" %% "async-transactions" % "1.0-SNAPSHOT" 
 
+Because this is currently only a snapshot, you'll need to add another resolver:
+
+    resolvers += Resolver.sonatypeRepo("snapshots")
+
 You will also need to hava javaJpa declared as a dependency.
 
 Usage
