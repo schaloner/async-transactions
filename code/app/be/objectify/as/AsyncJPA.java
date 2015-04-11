@@ -7,7 +7,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
 
 /**
- * This is pretty much a copy of {@link play.db.jpa.JPA} with some tweak to close entity managers on the completion of
+ * This is pretty much a copy of {@link play.db.jpa.JPA} with some tweaks to close entity managers on the completion of
  * promises instead of in a final block.
  *
  * @author Steve Chaloner (steve@objectify.be)
@@ -117,8 +117,14 @@ public class AsyncJPA
                         {
                         }
                     }
-                    fem.close();
-                    AsyncJPA.bindForCurrentThread(null);
+                    try
+                    {
+                        fem.close();
+                    }
+                    finally
+                    {
+                        AsyncJPA.bindForCurrentThread(null);
+                    }
                 }
             });
             committedResult.onRedeem(new F.Callback<T>()
@@ -126,8 +132,14 @@ public class AsyncJPA
                 @Override
                 public void invoke(T t)
                 {
-                    fem.close();
-                    AsyncJPA.bindForCurrentThread(null);
+                    try
+                    {
+                        fem.close();
+                    }
+                    finally
+                    {
+                        AsyncJPA.bindForCurrentThread(null);
+                    }
                 }
             });
 
@@ -147,8 +159,14 @@ public class AsyncJPA
             }
             if (em != null)
             {
-                em.close();
-                AsyncJPA.bindForCurrentThread(null);
+                try
+                {
+                    em.close();
+                }
+                finally
+                {
+                    AsyncJPA.bindForCurrentThread(null);
+                }
             }
             throw t;
         }
