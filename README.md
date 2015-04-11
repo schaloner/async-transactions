@@ -25,5 +25,9 @@ Wherever you have a @play.db.jpa.Transactional annotation, you can replace it wi
 present for subsequent actions this must be the first annotation specified for a type or method.
 
 Within your code, you can use AsyncJPA.em() or JPA.em() to obtain the bound EntityManager.  If you already have calls
-to JPA.em(), you don't need to change these.
+to JPA.em(), you don't need to change these.  However, changing them to AsyncJPA.em() will result in more meaningful
+error messages.
+
+Finally, this mechanism relies on a Http.Context being present.  If you're invoking calls that are annotated as
+@AsyncTransactional outside of a HTTP request, i.e. with no Http.Context present, you'll get an error message.
 
