@@ -2,6 +2,7 @@ package be.objectify.as;
 
 import play.db.jpa.JPA;
 import play.libs.F;
+import play.mvc.Http;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
@@ -14,10 +15,13 @@ import javax.persistence.EntityTransaction;
  */
 public class AsyncJPA
 {
+
+    public static final String CURRENT_ENTITY_MANAGER = "currentEntityManager";
+
     /**
      * Get the EntityManager for specified persistence unit for this thread.
      */
-    public static EntityManager em(String key)
+    public static EntityManager em(final String key)
     {
         return JPA.em(key);
     }
@@ -27,15 +31,49 @@ public class AsyncJPA
      */
     public static EntityManager em()
     {
-        return JPA.em();
+        final Http.Context context = Http.Context.current.get();
+        EntityManager em = null;
+        if (context != null)
+        {
+            em = (EntityManager) context.args.get(CURRENT_ENTITY_MANAGER);
+            if (em == null)
+            {
+                throw new RuntimeException("No EntityManager found in the context. Try to annotate your action method with @be.objectify.as.AsyncTransactional");
+            }
+            return em;
+        }
+        else
+        {
+            // Not a web request
+            throw new RuntimeException("No Http.Context is present.  If you want to invoke this method outside of a HTTP request, you need to wrap the call with a JPA.withTransaction instead.");
+        }
     }
 
     /**
-     * Bind an EntityManager to the current thread.
+     * Bind an EntityManager to the current context.
+     *
+     * @throws RuntimeException if no context is present
      */
-    public static void bindForCurrentThread(final EntityManager em)
+    public static void bindForAsync(final EntityManager em)
     {
-        JPA.bindForCurrentThread(em);
+        Http.Context context = Http.Context.current.get();
+        if (context != null)
+        {
+            if (em == null)
+            {
+                context.args.remove(CURRENT_ENTITY_MANAGER);
+            }
+            else
+            {
+                context.args.put(CURRENT_ENTITY_MANAGER, em);
+            }
+        }
+        else
+        {
+            // Not a web request
+            throw new RuntimeException("No Http.Context is present.  If you want to invoke this method outside of a HTTP request, you need to wrap the call with JPA.withTransaction instead.");
+        }
+
     }
 
     /**
@@ -46,8 +84,8 @@ public class AsyncJPA
     public static <T> F.Promise<T> withTransactionAsync(final play.libs.F.Function0<F.Promise<T>> block) throws Throwable
     {
         return AsyncJPA.withTransactionAsync("default",
-                                    false,
-                                    block);
+                                             false,
+                                             block);
     }
 
     /**
@@ -66,7 +104,7 @@ public class AsyncJPA
         try
         {
             em = AsyncJPA.em(name);
-            AsyncJPA.bindForCurrentThread(em);
+            AsyncJPA.bindForAsync(em);
 
             if (!readOnly)
             {
@@ -74,12 +112,12 @@ public class AsyncJPA
                 tx.begin();
             }
 
-            F.Promise<T> result = block.apply();
+            final F.Promise<T> result = block.apply();
 
             final EntityManager fem = em;
             final EntityTransaction ftx = tx;
 
-            F.Promise<T> committedResult = result.map(new F.Function<T, T>()
+            final F.Promise<T> committedResult = result.map(new F.Function<T, T>()
             {
                 @Override
                 public T apply(T t) throws Throwable
@@ -123,7 +161,7 @@ public class AsyncJPA
                     }
                     finally
                     {
-                        AsyncJPA.bindForCurrentThread(null);
+                        AsyncJPA.bindForAsync(null);
                     }
                 }
             });
@@ -138,7 +176,7 @@ public class AsyncJPA
                     }
                     finally
                     {
-                        AsyncJPA.bindForCurrentThread(null);
+                        AsyncJPA.bindForAsync(null);
                     }
                 }
             });
@@ -165,7 +203,7 @@ public class AsyncJPA
                 }
                 finally
                 {
-                    AsyncJPA.bindForCurrentThread(null);
+                    AsyncJPA.bindForAsync(null);
                 }
             }
             throw t;
