@@ -33,4 +33,5 @@ Finally, this mechanism relies on a Http.Context being present.  If you're invok
 
 Notes
 -----
-This issue is addressed in Play 2.4 (see https://github.com/playframework/playframework/pull/4232).
+* This issue is addressed in Play 2.4 (see https://github.com/playframework/playframework/pull/4232).
+* There is the possibiliy of deadlock when using JPA transactions in an asynchronous manner - see https://github.com/playframework/playframework/pull/4225#issuecomment-92597680 for an explanation.
