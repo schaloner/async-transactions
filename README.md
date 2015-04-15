@@ -31,3 +31,6 @@ error messages.
 Finally, this mechanism relies on a Http.Context being present.  If you're invoking calls that are annotated as
 @AsyncTransactional outside of a HTTP request, i.e. with no Http.Context present, you'll get an error message.
 
+Notes
+-----
+This issue is addressed in Play 2.4 (see https://github.com/playframework/playframework/pull/4232).
